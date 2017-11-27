@@ -9,7 +9,7 @@ class Client:
         """ server constructor """
         self.host = host
         self.port = port
-        self.socket = socket.socket()
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.incoming_conn = None
         self.incoming_addr = None
 
@@ -20,9 +20,10 @@ class Client:
 
     def send_message(self, message):
         """ send message """
-        print("sending %s to: %s:%s" % (message, self.host, self.port))
-        self.socket.send(message.encode())
+        print("sending %s to: %s:%s" % (str(message), self.host, self.port))
+        self.socket.send(message)
         data = self.socket.recv(1024).decode()
+        #data = self.socket.recv(1024)
         return data
 
     def close_connection(self):
