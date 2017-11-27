@@ -1,6 +1,6 @@
 """ client and server classes """
-from classes.server_class import Server
-from classes.client_class import Client
+from server_class import Server
+from client_class import Client
 from _thread import start_new_thread
 
 

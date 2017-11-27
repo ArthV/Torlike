@@ -1,5 +1,7 @@
 """ client class """
-from classes import client_class
+import sys
+sys.path.append("../classes/")
+import client_class
 
 alice = client_class.Client("127.0.0.1", 5000)
 alice.start_connection()

@@ -1,10 +1,12 @@
 """ relay class """
 from multiprocessing.dummy import Pool as ThreadPool
-from classes import relay_class
+import sys
+sys.path.append("../classes/")
+import relay_class
 
 
 def create_relay(listen_host, listen_port, forward_list):
-    """ create realys """
+    """ create relays """
     relay = relay_class.Relay(
         listen_host, listen_port, forward_list
     )
@@ -20,15 +22,17 @@ foward_list_2 = [
     {'foward_host': '127.0.0.1', 'foward_port': 5004}
 ]
 forward_list_3 = [
-    {'foward_host': '127.0.0.1', 'foward_port': 5010}
+    {'foward_host': '127.0.0.1', 'foward_port': 5004}
 ]
 foward_list_4 = [
-    {'foward_host': '127.0.0.1', 'foward_port': 5005}
+    {'foward_host': '127.0.0.1', 'foward_port': 5005},
+    {'foward_host': '127.0.0.1', 'foward_port': 5002}
 ]
 forward_list_5 = [
     {'foward_host': '127.0.0.1', 'foward_port': 5010}
 ]
 foward_list_6 = [
+    {'foward_host': '127.0.0.1', 'foward_port': 5004},
     {'foward_host': '127.0.0.1', 'foward_port': 5010}
 ]
 relay_list = [("127.0.0.1", 5000, forward_list_1),
