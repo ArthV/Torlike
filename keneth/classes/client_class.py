@@ -23,7 +23,6 @@ class Client:
         print("sending %s to: %s:%s" % (str(message), self.host, self.port))
         self.socket.send(message)
         data = self.socket.recv(1024).decode()
-        #data = self.socket.recv(1024)
         return data
 
     def close_connection(self):
