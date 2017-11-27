@@ -20,10 +20,10 @@ class Relay:
             self.server.incoming_conn, self.server.incoming_addr = self.server.socket.accept()
             print('Connected to: %s:%i' %
                   (self.server.incoming_addr[0], self.server.incoming_addr[1]))
-            start_new_thread(self.listen_and_foward, ())
+            start_new_thread(self.listen_and_forward, ())
 
-    def listen_and_foward(self):
-        """ listen and foward """
+    def listen_and_forward(self):
+        """ listen and forward """
         while True:
             # get data from the client
             data = self.server.incoming_conn.recv(1024).decode()
