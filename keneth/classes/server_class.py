@@ -7,7 +7,17 @@ class Server:
     """ server class """
 
     def __init__(self, host, port):
-        """ server constructor """
+        """ This is where the new socket instance is created.
+            Parameters
+            ----------
+            host : string
+                The host where the server will be bound.
+            port : int
+                The por where the server will be bound.
+            Returns
+            -------
+            new Server Object
+        """
         self.host = host
         self.port = port
         self.incoming_conn = None
@@ -24,8 +34,10 @@ class Server:
         """ starting connection """
         while True:
             self.incoming_conn, self.incoming_addr = self.socket.accept()
-            print('Connected to: %s:%i' %
-                  (self.incoming_addr[0], self.incoming_addr[1]))
+            print(
+                'Connected to: %s:%i' % (
+                    self.incoming_addr[0], self.incoming_addr[1])
+            )
             start_new_thread(self.listen_for_messages, ())
 
     def listen_for_messages(self):
