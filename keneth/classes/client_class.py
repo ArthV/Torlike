@@ -3,18 +3,30 @@ import socket
 
 
 class Client:
-    """ client class """
+    """ This class is used to start a new client socket in order to connect to 
+        a particular server which is listening.
+    """
 
     def __init__(self, host, port):
-        """ server constructor """
+        """ This is where the new socket instance is created.
+            Parameters
+            ----------
+            host : string
+                The host where the server is bound.
+            port : int
+                The por where the server is bound.
+            Returns
+            -------
+            new Client Object
+        """
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.incoming_conn = None
-        self.incoming_addr = None
 
     def start_connection(self):
-        """ start connection """
+        """ connect the socket to the server, using the previously setted
+            paramaters
+        """
         self.socket.connect((self.host, self.port))
         print("starting connection with: %s:%s" % (self.host, self.port))
 
