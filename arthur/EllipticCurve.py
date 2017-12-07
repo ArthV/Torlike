@@ -114,7 +114,7 @@ class EllipticCurve:
         return None
 
     # this function is duplication and can be used in the finiteFiel
-    # TODO: Create a static class which contains every method create in the code
+    # TODO: Create a static class which contains every method created in the code
     @staticmethod
     def get_coeffs_from_int(byte):
         bin_str = bin(byte)[2:]

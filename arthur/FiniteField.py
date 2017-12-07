@@ -1,11 +1,12 @@
 # @AUTHOR: Arthur Valingot
 # @DATE: 27/11/2017
-# This class defines a finite field operation. We actually use the representation and the mechanisms showed in the
+# This class defines the finite field operations. We actually use the representation and the mechanisms showed in the
 # law.pdf page 125, in order to define the operation on GF(256) which is represented by Z/2Z/X^8+X^4+X^3+X+1
 # This means that we use a polynomial representation, ie we use the operation addition and multiplication defined on
-# the polynomial space, but the coefficient belong to the ring Z/2Z, ie the for i = 1 and j = 1 i + j = 0 mod 2
-# To be sure that the multiplication of two polynomials will give an order greater than 7, we each time considering the
-# remainder with the polynomial X^8+X^4+X^3+X+1
+# the polynomial space, but the coefficient belong to the ring Z/2Z, ie let i = 1 and j = 1  then i + j = 0 mod 2
+# To be sure that the multiplication of two polynomials will not give an order greater than 7, we each time considering
+# the remainder of the division with the polynomial X^8+X^4+X^3+X+1
+
 
 class FiniteField:
     def __init__(self, coeffs):
