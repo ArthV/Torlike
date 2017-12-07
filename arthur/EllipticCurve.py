@@ -1,5 +1,6 @@
 # @AUTHOR: Arthur Valingot
 # @DATE: 27/11/2017
+
 #This class implement the mathematical operation in order to manipulate a point with an Elliptic Curve
 from FiniteField import FiniteField
 
@@ -56,6 +57,7 @@ class EllipticCurvePoint:
                 for i in cst_bin:
                     q = q + q
                     if i == '1':
+                        print(q)
                         q = q + self
 
                 return q
@@ -64,6 +66,7 @@ class EllipticCurvePoint:
 
     def __str__(self):
         return 'x :' + str(self.x) + '\n' + 'y:' + str(self.y)
+
 
 # In order to have the good behaviour of the neutral element, The neutral element class is defined
 
@@ -97,9 +100,9 @@ class EllipticCurve:
 
     def __eq__(self, other):
         return self.a == other.a and self.b == other.b
-
     # we want to work out the point of the elliptic curve for a given x
     # This function return x if the point x doesn't belong to the elliptic curve
+
     def workout_y(self, x):
 
         zero = FiniteField([0])
@@ -115,6 +118,7 @@ class EllipticCurve:
 
     # this function is duplication and can be used in the finiteFiel
     # TODO: Create a static class which contains every method created in the code
+    
     @staticmethod
     def get_coeffs_from_int(byte):
         bin_str = bin(byte)[2:]

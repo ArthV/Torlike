@@ -1,8 +1,10 @@
 from FiniteField import FiniteField
 from EllipticCurve import EllipticCurve, EllipticCurvePoint
 
+
 a = FiniteField([0, 1, 1, 0, 1, 1])
 b = FiniteField([1, 0, 1, 1, 1])
+
 #print(a + b)
 # print(a*b)
 # print(a == b)
@@ -29,6 +31,7 @@ b_1 = FiniteField(FiniteField.get_coeffs_from_int(0x8d))
 
 
 # print('test')
+
 test = 0
 x = FiniteField([1, 1, 0, 0, 1, 1, 0, 1])
 for i in range(1, 256):
@@ -52,6 +55,7 @@ x = 10*p
 print('Test Algorithm')
 
 print(x.x + x.y)
+
 
 
 
