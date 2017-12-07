@@ -1,8 +1,10 @@
 from FiniteField import FiniteField
 from EllipticCurve import EllipticCurve, EllipticCurvePoint
 
-a = FiniteField([0, 1, 0, 0, 1, 1])
-b = FiniteField([1, 0, 0, 1])
+
+a = FiniteField([0, 1, 1, 0, 1, 1])
+b = FiniteField([1, 0, 1, 1, 1])
+
 #print(a + b)
 # print(a*b)
 # print(a == b)
@@ -29,20 +31,32 @@ b_1 = FiniteField(FiniteField.get_coeffs_from_int(0x8d))
 
 
 # print('test')
-# x = FiniteField([1, 1, 0, 0, 1, 1, 0, 1])
-# for i in range(256):
-#     b = FiniteField(x.get_coeffs_from_int(i))
-#     z = curve.workout_y(b)
-#     print('b')
-#     print(b)
-#     print('z')
-#     print(z)
 
-p = EllipticCurvePoint(FiniteField([0, 1, 1, 0, 1, 0, 1, 1]), FiniteField([1, 0, 1, 0, 0, 1]), curve)
+test = 0
+x = FiniteField([1, 1, 0, 0, 1, 1, 0, 1])
+for i in range(1, 256):
+    b = FiniteField(x.get_coeffs_from_int(i))
+    z = curve.workout_y(b)
+    if type(z) is FiniteField:
+        p = EllipticCurvePoint(b, z, curve)
+        break
+
+print('P')
+print(p)
+print('number of point')
+print(test)
 
 print(p)
+print('-P')
 print(-p)
-print(10*p)
+print('10*p')
+x = 10*p
+
+print('Test Algorithm')
+
+print(x.x + x.y)
+
+
 
 
 #

@@ -1,3 +1,13 @@
+# @AUTHOR: Arthur Valingot
+# @DATE: 27/11/2017
+# This class defines the finite field operations. We actually use the representation and the mechanisms showed in the
+# law.pdf page 125, in order to define the operation on GF(256) which is represented by Z/2Z/X^8+X^4+X^3+X+1
+# This means that we use a polynomial representation, ie we use the operation addition and multiplication defined on
+# the polynomial space, but the coefficient belong to the ring Z/2Z, ie let i = 1 and j = 1  then i + j = 0 mod 2
+# To be sure that the multiplication of two polynomials will not give an order greater than 7, we each time considering
+# the remainder of the division with the polynomial X^8+X^4+X^3+X+1
+
+
 class FiniteField:
     def __init__(self, coeffs):
         #the bit are defined with str to be concatenate
@@ -16,7 +26,7 @@ class FiniteField:
         return str_a
 
     @staticmethod
-    def get_coeffs_from_int( byte):
+    def get_coeffs_from_int(byte):
         bin_str = bin(byte)[2:]
         coeffs = []
         for i in bin_str[::-1]:
@@ -24,11 +34,14 @@ class FiniteField:
 
         return coeffs
 
+    # In order to implement the division of an element of the Finite field, we look for the an other element
+    # which belongs to to GF(256) and multiplied by the first element equals to 1 = 0*X^8+0*X^7+0*X^6 ... +0*X^1+1
+    # which is the neutral element for the multiplication of the finite field.
+
     def __truediv__(self, other):
         for i in range(256):
             b = FiniteField(self.get_coeffs_from_int(i))
             if b * other == FiniteField([1]):
-                print(b)
                 return self * b
 
         return None
