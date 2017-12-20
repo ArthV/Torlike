@@ -1,10 +1,10 @@
 """ to use sockets"""
 import socket
+from random import *
 from _thread import start_new_thread
 from MessageFactory import MessageFactory, Object, MessageBase
-from EllipticCurve import EllipticCurve, EllipticCurvePoint
+from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
 from FiniteField import FiniteField
-from random import *
 
 
 class Server:

@@ -2,7 +2,10 @@
 from _thread import start_new_thread
 import Server
 import Client
+from random import *
 from MessageFactory import MessageFactory, Object, MessageBase
+from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
+from FiniteField import FiniteField
 
 
 class Relay:
@@ -27,6 +30,14 @@ class Relay:
         self.neighbors = forward_list
         self.server = Server.Server(self.listen_host, self.listen_port)
 
+        # Security object
+        self.elliptic_curve = ''
+        self.elliptic_point = ''
+        self.A = ''
+        self.B = ''
+        self.C = ''
+
+
     def start_connection(self):
         """ start connection """
         while True:
@@ -42,8 +53,7 @@ class Relay:
         """ listen and forward """
         while True:
             # get data from the client
-            #data = self.server.incoming_conn.recv(1024).decode()
-            data = self.server.incoming_conn.recv(1024)
+            data = self.server.incoming_conn.recv(1024) # Check if is enough
             if not data:
                 break
             print(
@@ -55,87 +65,23 @@ class Relay:
                     self.server.incoming_addr[1]
                 )
             )
-
             # know the type of message
-
             version, message_type, length = MessageBase.get_type_version_length(
-                data
+                data.decode()
             )
             print(
-                "The message version is: %s, type: %s, length: %i" %
+                "The message version is: %s, type: %s, length: %s" %
                 (version, message_type, length)
             )
             # Here we have to get the message and based on the type do something
 
-            if version == 0:  # KEY_INIT
+            if message_type == 0:  # KEY_INIT
                 self.send_key(data)
-            elif version == 2:  # MESSAGE_RELAY
+            elif message_type == 2:  # MESSAGE_RELAY
                 self.forward_message(data)
             else:  # Build an error message
                 self.send_error(data)
-            '''
-            # send data to the server
-            print("sending: %s" % (str(data)))
-            message = str(data).split(",")  # Data,port,port,port
-            print(message)
-            hops = len(message) - 1
-            print("hops size: %i" % (hops))
-            if hops > 0:
-                neighbors_size = len(self.neighbors)
-                print(
-                    "neighbors size: %i, next hop: %s" %
-                    (neighbors_size, message[1])
-                )
-                if neighbors_size > 1:  # has more than 1 neighbor
-                    for neighbor in self.neighbors:
-                        if int(neighbor['forward_port']) == int(message[1]):
-                            client = Client(
-                                neighbor['forward_host'],
-                                neighbor['forward_port']
-                            )
-                            client.start_connection()
-                            print(
-                                "is redirecting to the right neighbor: %i" %
-                                (neighbor['forward_port'])
-                            )
-                            new_data = message[0]
-                            if hops > 1:
-                                for i in range(1, hops):
-                                    new_data += "," + message[i + 1]
-                                data = client.send_message(new_data.encode())
-                            else:
-                                data = client.send_message(new_data.encode())
-                            break
-                else:
-                    client = Client(
-                        self.neighbors[0]['forward_host'],
-                        self.neighbors[0]['forward_port']
-                    )
-                    client.start_connection()
-                    final_data = str(message[0])
-                    data = client.send_message(final_data.encode())
-            else:
-                client = Client(
-                    self.neighbors[0]['forward_host'],
-                    self.neighbors[0]['forward_port']
-                )
-                client.start_connection()
-                final_data = str(message[0])
-                data = client.send_message(final_data.encode())
-            print(
-                "Connection to: %s, data: %s" %
-                (self.server.incoming_addr, str(data))
-            )
-            # responding to client
-            self.server.incoming_conn.send(data.encode())
-            print(
-                "Closing connection with : %s:%i" % (
-                    self.server.incoming_addr[0],
-                    self.server.incoming_addr[1]
-                )
-            )
-            client.close_connection()
-            '''
+
         self.server.close_connection()
 
     def decrypt(self, message):
@@ -159,8 +105,36 @@ class Relay:
         # Here we have to build a new message to reply to the client
         message_object = Object()
         message_object.version = 1
-        message_object.key_id = 'test'
-        message_object.B = 'test'
+        message_object.key_id = key_init_message.key_id
+
+        # We know want to calculate B
+        # Let's workout the ellipticCurve and the elliptic point
+        elliptic_curve_coeffs = key_init_message.p.split(':')
+        a = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_curve_coeffs[0])))
+        b = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_curve_coeffs[1])))
+
+        elliptic_point_coeffs = key_init_message.g.split(':')
+        x = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_point_coeffs[0])))
+        y = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_point_coeffs[1])))
+        self.elliptic_curve = EllipticCurve(a, x, y)
+        self.elliptic_curve.b = b
+        self.elliptic_point = EllipticCurvePoint(x, y, self.elliptic_curve)
+
+        A_coeffs = key_init_message.A.split(':')
+        A_x = FiniteField(FiniteField.get_coeffs_from_int(int(A_coeffs[0])))
+        A_y = FiniteField(FiniteField.get_coeffs_from_int(int(A_coeffs[1])))
+        self.A = EllipticCurvePoint(A_x, A_y, self.elliptic_curve)
+
+        n = randint(1000, 5000)
+        self.B = n*self.elliptic_point
+
+        # let's calculate the key use to cipher
+        self.C = n*self.A
+
+        # Debug
+        print('C Value')
+        print(self.C)
+        message_object.B = self.B.get_byte_string_from_coeffs()
         message = MessageFactory.get_message('KEY_REPLY', message_object)
         self.server.incoming_conn.send(message.encode())
 
@@ -177,12 +151,13 @@ class Relay:
         message_shell = MessageFactory.get_empty_message('MESSAGE_RELAY')
         relay_message = message_shell.decode(message)
         decrypted_message = self.decrypt(relay_message.message)
-        next_hop_host = ''
-        next_hop_port = 0
-        payload = ''
+        decrypted_next_hop = self.decrypt(relay_message.next_hop).split(':')
+        next_hop_host = decrypted_next_hop[0]
+        next_hop_port = int(decrypted_next_hop[1])
+        payload = decrypted_message
         client = Client.Client(next_hop_host, next_hop_port)
         client.start_connection()
         print("is redirecting to the next hop: %i" % (next_hop_port))
-        answer = client.send_message(payload.encode())
-        self.server.incoming_conn.send(answer.encode())
-        client.close_connection()
+        answer = client.send_message(payload)  # Waiting for an answer
+        self.server.incoming_conn.send(answer)  # Anwering the incom connection
+        client.close_connection() # closing the connection after respond

@@ -4,25 +4,27 @@ from random import *
 sys.path.append("classes")
 import Client
 from MessageFactory import MessageFactory, Object
+from Loader import Loader
+from Dijkstra import Graph
 from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
 from FiniteField import FiniteField
 
+MY_ADDRESS = Loader.get_my_address('alice')
+Loader.load_topo_init()
 KEY_MAP = dict()
+TOPOLOGY = Loader.HOSTS_TABLE
 
 
 def negociate_keys():
     """ Negociating the keys with all the nodes in the network """
 
     # Instead of hardocode has to be read from the topology file.
-    nodes = [
-        {'host': 'localhost', 'port': 5000, 'id': 1},
-        {'host': 'localhost', 'port': 5001, 'id': 2},
-        {'host': 'localhost', 'port': 5002, 'id': 3},
-        {'host': 'localhost', 'port': 5003, 'id': 4},
-        {'host': 'localhost', 'port': 5004, 'id': 5},
-        {'host': 'localhost', 'port': 5005, 'id': 6},
-        {'host': 'localhost', 'port': 5010, 'id': 7}
-    ]
+    nodes = []
+    for key, value in TOPOLOGY.items():
+        if 'alice' in value['name']:
+            continue
+        nodes.append(value)
+
     # Do a loop for each relay and bob to negociate the keys
     for node in nodes:
         # start the connection
@@ -98,17 +100,9 @@ def negociate_keys():
 
 def random_dijkstra():
     """ calculate the random path """
-    random_path = [
-        {'host': 'localhost', 'port': 5000},
-        {'host': 'localhost', 'port': 5001},
-        {'host': 'localhost', 'port': 5002},
-        {'host': 'localhost', 'port': 5003},
-        {'host': 'localhost', 'port': 5004},
-        {'host': 'localhost', 'port': 5005},
-        {'host': 'localhost', 'port': 5006}
-    ]
-    random_path.append({'host': 'localhost', 'port': 5010})  # Bob
-    return random_path
+    random_path = Graph.random_dijkstra(TOPOLOGY)
+    # print(random_path[1:])
+    return random_path[1:]  # removing alice
 
 
 def encrypt(message):
@@ -128,7 +122,7 @@ def build_shallot(message):
             message_object.next_hop = encrypt(
                 node['host'] + ':' + str(node['port'])
             )
-            message_object.message = encrypt(message)
+            message_object.message = encrypt(message)  # next hop
             final_message = MessageFactory.get_message(
                 'MESSAGE_RELAY', message_object
             )
@@ -157,6 +151,7 @@ def send_message():
     while message != 'q':
         shallot_message, path = build_shallot(message)
         alice = Client.Client(path[0]['host'], path[0]['port'])
+        alice.socket.bind(MY_ADDRESS[0], MY_ADDRESS[1])
         data = alice.send_message(shallot_message.encode())
         print('Received from server: %s' % (data))
         alice.close_connection()
