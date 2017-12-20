@@ -24,14 +24,11 @@ class Loader:
         host_ini_file = open(Loader.HOST_INI, 'r')
 
         i = 0
+        bob_line = None
         while True:
             line = host_ini_file.readline().rstrip()
             if line == '':
-                break
-            if 'bob' in line.lower():
-                print('entra a bob')
-                line = host_ini_file.readline().rstrip()
-                host, port = line.split(' ')
+                host, port = bob_line.split(' ')
                 Loader.HOSTS_TABLE.update(
                     {
                         host + ':' + str(port): {
@@ -40,9 +37,13 @@ class Loader:
                         }
                     }
                 )
+                break
+            if 'bob' in line.lower():
+                # print('entra a bob')
+                bob_line = host_ini_file.readline().rstrip()
                 continue
             elif "alice" in line.lower():
-                print("entra alice")
+                # print("entra alice")
                 line = host_ini_file.readline().rstrip()
                 host, port = line.split(' ')
                 Loader.HOSTS_TABLE.update(
@@ -53,9 +54,9 @@ class Loader:
                         }
                     }
                 )
+                i += 1
                 continue
             elif "relays" in line.lower():
-                i += 1
                 continue
             host, port = line.split(' ')
             Loader.HOSTS_TABLE.update(
@@ -84,7 +85,7 @@ class Loader:
             # do something with the topology
             neighbors = line.split(' ')
             host_port = neighbors[0]
-            Loader.HOSTS_TABLE[host_port]['neighbors'] = neighbors[1:]
+            Loader.HOSTS_TABLE[host_port]['neighbors'] = neighbors[1:] # removing itself address
         # print(Loader.HOSTS_TABLE)
 
     @staticmethod
