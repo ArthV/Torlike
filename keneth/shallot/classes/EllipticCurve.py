@@ -1,7 +1,8 @@
 # @AUTHOR: Arthur Valingot
 # @DATE: 27/11/2017
 
-#This class implement the mathematical operation in order to manipulate a point with an Elliptic Curve
+# This class implement the mathematical operation in order to manipulate a point with an Elliptic Curve
+
 from FiniteField import FiniteField
 
 
@@ -11,24 +12,30 @@ class EllipticCurvePoint:
         self.y = y
         self.elliptic_curve = elliptic_curve
 
+    def get_byte_string_from_coeffs(self):
+        x_str = FiniteField.get_byte_string_from_coeffs(self.x.coeffs)
+        y_str = FiniteField.get_byte_string_from_coeffs(self.y.coeffs)
+
+        return str(int(x_str, 2)) + ':' + str(int(y_str, 2))
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y and self.elliptic_curve == other.elliptic_curve
 
     def __add__(self, other):
         # According to CryptoAvance.pdf, we use the definition of the addition
+        # Erratum: These following formula come from the https://www.hyperelliptic.org/EFD/g12o/auto-shortw.html
         if self == -other:
             return EllipticCurveNeutralEl(self.elliptic_curve)
         elif self == other:
-            v = self.x + self.y / self.x
-            new_x = v * v + v + self.elliptic_curve.a
-            new_y = new_x * new_x + v * new_x + new_x
+            alpha = self.x + self.y/self.x
+            new_x = alpha * alpha + alpha + self.elliptic_curve.a
+            new_y = alpha * alpha * alpha + (self.x + self.elliptic_curve.a + FiniteField([1])) * alpha + self.elliptic_curve.a + self.y
 
             return EllipticCurvePoint(new_x, new_y, self.elliptic_curve)
         else:
-            v = self.x + other.x
-            z = (self.y + other.y)/v
-            new_x = z*z + z + v + self.elliptic_curve.a
-            new_y = (z + FiniteField([1]))*new_x + z*self.x + self.y
+            R = (other.y + self.y)/(other.x + self.x)
+            new_x = R * R + R + self.x + other.x + self.elliptic_curve.a
+            new_y = R * R * R + (other.x + self.elliptic_curve.a + FiniteField([1]))*R + self.x + other.x + self.elliptic_curve.a + self.y
 
             return EllipticCurvePoint(new_x, new_y, self.elliptic_curve)
 
@@ -43,15 +50,14 @@ class EllipticCurvePoint:
         # According to CryptoAvance, we implement the multiplication with a constant
         if type(constant) is int:
             if constant == 2:
-                v = self.x + self.y/self.x
-                new_x = v * v + v + self.elliptic_curve.a
-                new_y = new_x * new_x + v * new_x + new_x
+                alpha = self.x + self.y / self.x
+                new_x = alpha * alpha + alpha + self.elliptic_curve.a
+                new_y = alpha * alpha * alpha + (self.x + self.elliptic_curve.a + FiniteField([1])) * alpha + self.elliptic_curve.a + self.y
 
                 return EllipticCurvePoint(new_x, new_y, self.elliptic_curve)
             else:
-                #the constant will be turn in binary as a string of 0 and 1
+                # the constant will be turn in binary as a string of 0 and 1
                 cst_bin = bin(constant)[2:]
-                print(cst_bin)
                 q = EllipticCurveNeutralEl(self.elliptic_curve)
 
                 # The following code will go through the string cst_bin
@@ -94,29 +100,29 @@ class EllipticCurveNeutralEl:
 
 
 class EllipticCurve:
-    def __init__(self, a, b):
+    def __init__(self, a, x, y):
         self.a = a
-        self.b = b
+        self.x = x
+        self.y = y
+
+        self.b = None
 
     def __eq__(self, other):
         return self.a == other.a and self.b == other.b
     # we want to work out the point of the elliptic curve for a given x
     # This function return x if the point x doesn't belong to the elliptic curve
 
-    def workout_y(self, x):
+    def workout_b(self):
 
         zero = FiniteField([0])
-        beta = x * x * x + self.a * x * x + self.b
+        beta = self.y * self.y + self.x * self.y + self.x * self.x * self.x + self.a * self.x * self.x
 
-        for i in range(256):
-            f = FiniteField(self.get_coeffs_from_int(i))
-            if f * f + x * f + beta == zero:
+        for i in range(1, 256):
+            b = FiniteField(self.get_coeffs_from_int(i))
+            if beta + b == zero:
+                self.b = b
 
-                return f
-
-        return None
-
-    # this function is duplication and can be used in the finiteFiel
+    # this function is duplication and can be used in the finiteField
     # TODO: Create a static class which contains every method created in the code
     
     @staticmethod

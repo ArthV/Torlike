@@ -1,4 +1,4 @@
-""" relay class """
+
 from multiprocessing.dummy import Pool as ThreadPool
 import sys
 sys.path.append("classes")

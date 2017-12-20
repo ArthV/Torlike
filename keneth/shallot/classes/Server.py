@@ -2,6 +2,9 @@
 import socket
 from _thread import start_new_thread
 from MessageFactory import MessageFactory, Object, MessageBase
+from EllipticCurve import EllipticCurve, EllipticCurvePoint
+from FiniteField import FiniteField
+from random import *
 
 
 class Server:
@@ -30,6 +33,13 @@ class Server:
             print(str(ex_message))
         self.socket.listen(5)
         print("starting connection at: %s:%s" % (self.host, self.port))
+
+        # Security object
+        self.elliptic_curve = ''
+        self.elliptic_point = ''
+        self.A = ''
+        self.B = ''
+        self.C = ''
 
     def start_connection(self):
         """ starting connection """
@@ -98,8 +108,34 @@ class Server:
         # Here we have to build a new message to reply to the client
         message_object = Object()
         message_object.version = 1
-        message_object.key_id = 'test'
-        message_object.B = 'test'
+        message_object.key_id = key_init_message.key_id
+
+        # We know want to calculate B
+        # Let's workout the ellipticCurve and the elliptic point
+        elliptic_curve_coeffs = key_init_message.p.split(':')
+        a = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_curve_coeffs[0])))
+        b = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_curve_coeffs[1])))
+
+        elliptic_point_coeffs = key_init_message.g.split(':')
+        x = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_point_coeffs[0])))
+        y = FiniteField(FiniteField.get_coeffs_from_int(int(elliptic_point_coeffs[1])))
+        self.elliptic_curve = EllipticCurve(a, x, y)
+        self.elliptic_curve.b = b
+        self.elliptic_point = EllipticCurvePoint(x, y, self.elliptic_curve)
+
+        A_coeffs = key_init_message.A.split(':')
+        A_x = FiniteField(FiniteField.get_coeffs_from_int(int(A_coeffs[0])))
+        A_y = FiniteField(FiniteField.get_coeffs_from_int(int(A_coeffs[1])))
+        self.A = EllipticCurvePoint(A_x, A_y, self.elliptic_curve)
+
+        n = randint(1000, 5000)
+        self.B = n * self.elliptic_point
+
+        # let's calculate the key use to cipher
+        self.C = n * self.A
+
+        print(self.C)
+        message_object.B = self.B.get_byte_string_from_coeffs()
         message = MessageFactory.get_message('KEY_REPLY', message_object)
         self.incoming_conn.send(message.encode())
 

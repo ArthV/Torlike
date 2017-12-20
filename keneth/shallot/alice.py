@@ -1,8 +1,11 @@
 """ client class """
 import sys
+from random import *
 sys.path.append("classes")
 import Client
 from MessageFactory import MessageFactory, Object
+from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
+from FiniteField import FiniteField
 
 KEY_MAP = dict()
 
@@ -12,13 +15,13 @@ def negociate_keys():
 
     # Instead of hardocode has to be read from the topology file.
     nodes = [
-        {'host': 'localhost', 'port': 5000},
-        {'host': 'localhost', 'port': 5001},
-        {'host': 'localhost', 'port': 5002},
-        {'host': 'localhost', 'port': 5003},
-        {'host': 'localhost', 'port': 5004},
-        {'host': 'localhost', 'port': 5005},
-        {'host': 'localhost', 'port': 5010}
+        {'host': 'localhost', 'port': 5000, 'id': 1},
+        {'host': 'localhost', 'port': 5001, 'id': 2},
+        {'host': 'localhost', 'port': 5002, 'id': 3},
+        {'host': 'localhost', 'port': 5003, 'id': 4},
+        {'host': 'localhost', 'port': 5004, 'id': 5},
+        {'host': 'localhost', 'port': 5005, 'id': 6},
+        {'host': 'localhost', 'port': 5010, 'id': 7}
     ]
     # Do a loop for each relay and bob to negociate the keys
     for node in nodes:
@@ -29,10 +32,38 @@ def negociate_keys():
         message_object = Object()
         message_object.version = 1
         message_object.type = 1
-        message_object.key_id = 'a'
-        message_object.g = 'test'
-        message_object.p = 'test'
-        message_object.A = 'test'
+        message_object.key_id = str(node['id'])
+
+        # Let's generate a random x y and a coeff
+        x = FiniteField([randint(0, 1) for i in range(7)])
+        y = FiniteField([randint(0, 1) for i in range(7)])
+        a = FiniteField([randint(0, 1) for i in range(7)])
+
+        # let's define the elliptic curve
+        curve = EllipticCurve(a, x, y)
+
+        # Let's workout the coeff b of the elliptic curve
+        curve.workout_b()
+
+        # Let's find a point which belong to the elliptical curve
+        while True:
+            g = EllipticCurvePoint(x, y, curve)
+            if type(g) is not EllipticCurveNeutralEl:
+                break
+        # Let's calculate the good A factor
+        n = randint(1000, 5000)
+        A = n*g
+
+        # Let's build the KEY_MAP with every information about EllipticCurve
+
+        # Let's turn the Array of bits into string in order to send it through the network
+        a_str = str(int(FiniteField.get_byte_string_from_coeffs(a.coeffs), 2))
+        b_str = str(int(FiniteField.get_byte_string_from_coeffs(curve.b.coeffs), 2))
+
+        message_object.g = g.get_byte_string_from_coeffs()
+        message_object.p = a_str + ':' + b_str
+        message_object.A = A.get_byte_string_from_coeffs()
+
         key_init_message = MessageFactory.get_message(
             'KEY_INIT', message_object
         )
@@ -40,16 +71,26 @@ def negociate_keys():
         # receive the key here
         to_decode = MessageFactory.get_empty_message('KEY_REPLY')
         key_reply_message = to_decode.decode(key_reply)
+        # Let's retrieve the key
+
+        B_coeffs = key_reply_message.B.split(':')
+        B_x = FiniteField(FiniteField.get_coeffs_from_int(int(B_coeffs[0])))
+        B_y = FiniteField(FiniteField.get_coeffs_from_int(int(B_coeffs[1])))
+
+        B = EllipticCurvePoint(B_x, B_y, curve)
+
+        C = n*B
+        KEY_MAP[node['id']] = {'A': A, 'g': g, 'n': n, 'curve': curve, 'C': C}
+
         print('Key_reply message')
         print(
-            'type: %i, version: %i, key_id: %s, B:%s' %
+            'type: %i, version: %i, key_id: %s, B:%s, C:%s' %
             (
                 key_reply_message.type, key_reply_message.version,
-                key_reply_message.key_id, key_reply_message.B
+                key_reply_message.key_id, key_reply_message.B, C
             )
         )
         host_id = node['host'] + ':' + str(node['port'])
-        KEY_MAP.update({'host': host_id, 'key': key_reply_message.key_id})
         # close the connection
         conn.close_connection()
     print(" The keys have been negociated")
