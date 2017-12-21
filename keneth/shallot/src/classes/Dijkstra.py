@@ -93,6 +93,7 @@ class Graph:
                     random_path.append(value)
                     break
         # print(random_path)
+        PATH.clear()
         return random_path
 
     @staticmethod
