@@ -1,16 +1,16 @@
 """ server class """
 import sys
-#sys.path.append("../classes/") 
+sys.path.append("classes")
 import Server
-
+from Loader import Loader
 
 
 def main():
     """ main execution """
-    bob = Server.Server("localhost", 5010)
+    host, port = Loader.get_my_address('bob')
+    bob = Server.Server(host, port)
     bob.start_connection()
 
 
 if __name__ == "__main__":
-    print (sys.path)
     sys.exit(main())
