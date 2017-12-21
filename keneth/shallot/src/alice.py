@@ -3,11 +3,12 @@ import sys
 from random import *
 sys.path.append("classes")
 import Client
-from MessageFactory import MessageFactory, Object
+from MessageFactory import MessageFactory, Object, MessageBase
 from Loader import Loader
 from Dijkstra import Graph
 from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
 from FiniteField import FiniteField
+from Crypto.Cipher import AES
 
 MY_ADDRESS = Loader.get_my_address('alice')
 Loader.load_topo_init()
@@ -105,41 +106,62 @@ def random_dijkstra():
     return random_path[1:]  # removing alice
 
 
-def encrypt(message):
+def encrypt(next_hop, message, security):
     """ Encrypt the message using the node key """
-    return message
+    c = security['C']
+    key = ''
+    len_x = 8 if len(c.x.coeffs) > 8 else len(c.x.coeffs)
+    len_y = 8 if len(c.y.coeffs) > 8 else len(c.y.coeffs)
+    for i in range(len_x):
+        key += str(c.x.coeffs[i])
+    for i in range(len_y):
+        key += str(c.y.coeffs[i])
+
+    encoded_key = (MessageBase.add_padding(key, 16)).encode() # The AES algorithm only manipulates bytes
+    cipher = AES.new(encoded_key)
+    string = next_hop + b'|' + message
+    len_string = len(string)
+    size = len_string + 16 - len_string % 16
+
+    while len_string != size:
+        string = b' ' + string
+        len_string += 1
+
+    ciphered_message = cipher.encrypt(string)
+
+    return ciphered_message
 
 
 def build_shallot(message):
     """ build the shallot """
     path = random_dijkstra()
-    prev_message = None
+    message = message.encode()
+    prev_node = None
     for node in reversed(path):
-        if prev_message is None:
-            message_object = Object()
-            message_object.version = 1
-            message_object.key_id = 'keyid'
-            message_object.next_hop = encrypt(
-                node['host'] + ':' + str(node['port'])
-            )
-            message_object.message = encrypt(message)  # next hop
-            final_message = MessageFactory.get_message(
-                'MESSAGE_RELAY', message_object
+        if prev_node is None:
+            message = encrypt(
+                b'',
+                message,
+                KEY_MAP[node['id']]
             )
         else:
-            message_object = Object()
-            message_object.version = 1
-            message_object.key_id = 'keyid'
-            message_object.next_hop = encrypt(
-                node['host'] + ':' + str(node['port'])
+            message = encrypt(
+                (prev_node['host'] + ':' + str(prev_node['port'])).encode(),
+                message,
+                KEY_MAP[node['id']]
             )
-            message_object.message = encrypt(prev_message)
-            final_message = MessageFactory.get_message(
-                'MESSAGE_RELAY', message_object
-            )
-        prev_message = final_message
 
-    return prev_message, path
+        prev_node = node
+
+    message_object = Object()
+    message_object.version = 1
+    message_object.key_id = str(path[0]['id'])
+    message_object.message = message
+    final_message = MessageFactory.get_message(
+        'MESSAGE_RELAY', message_object
+    )
+
+    return final_message, path
 
 
 def send_message():
@@ -151,7 +173,8 @@ def send_message():
     while message != 'q':
         shallot_message, path = build_shallot(message)
         alice = Client.Client(path[0]['host'], path[0]['port'])
-        alice.socket.bind(MY_ADDRESS[0], MY_ADDRESS[1])
+        alice.start_connection()
+        #alice.socket.bind(MY_ADDRESS[1])
         data = alice.send_message(shallot_message.encode())
         print('Received from server: %s' % (data))
         alice.close_connection()

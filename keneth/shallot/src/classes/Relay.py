@@ -6,6 +6,7 @@ from random import *
 from MessageFactory import MessageFactory, Object, MessageBase
 from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
 from FiniteField import FiniteField
+from Crypto.Cipher import AES
 
 
 class Relay:
@@ -67,7 +68,7 @@ class Relay:
             )
             # know the type of message
             version, message_type, length = MessageBase.get_type_version_length(
-                data.decode()
+                data[0:8].decode()
             )
             print(
                 "The message version is: %s, type: %s, length: %s" %
@@ -86,7 +87,29 @@ class Relay:
 
     def decrypt(self, message):
         """ Use the own key and apply the AES decypher algorithm """
-        return message
+        c = self.C
+        key = ''
+        len_x = 8 if len(c.x.coeffs) > 8 else len(c.x.coeffs)
+        len_y = 8 if len(c.y.coeffs) > 8 else len(c.y.coeffs)
+        for i in range(len_x):
+            key += str(c.x.coeffs[i])
+        for i in range(len_y):
+            key += str(c.y.coeffs[i])
+
+        encoded_key = (MessageBase.add_padding(key, 16)).encode()  # The AES algorithm only manipulates bytes
+        cipher = AES.new(encoded_key)
+
+        #message = message.decode()
+        decrypted_message = cipher.decrypt(message)
+        for i in range(len(decrypted_message)):
+            if decrypted_message[i:i+1] == b'|':
+                next_hop = decrypted_message[0:i]
+                next_message = decrypted_message[i+1:]
+                break
+        next_hop = str(next_hop, encoding='utf-8')
+        next_hop = (MessageBase.remove_padding(next_hop)).split(':')
+
+        return next_message, next_hop
 
     def send_key(self, message):
         """ reply with the key  """
@@ -148,13 +171,21 @@ class Relay:
 
     def forward_message(self, message):
         """ decrypt the message and send to the next hop """
-        message_shell = MessageFactory.get_empty_message('MESSAGE_RELAY')
-        relay_message = message_shell.decode(message)
-        decrypted_message = self.decrypt(relay_message.message)
-        decrypted_next_hop = self.decrypt(relay_message.next_hop).split(':')
-        next_hop_host = decrypted_next_hop[0]
-        next_hop_port = int(decrypted_next_hop[1])
-        payload = decrypted_message
+
+        # relay_message = message_shell.decode(message)
+        decrypted_message, next_hop = self.decrypt(message[8:])
+
+        message_object = Object()
+        message_object.version = 1
+        message_object.key_id = 'id'
+        message_object.message = decrypted_message
+        new_message = MessageFactory.get_message(
+            'MESSAGE_RELAY', message_object
+        )
+
+        next_hop_host = next_hop[0]
+        next_hop_port = int(next_hop[1])
+        payload = new_message.encode()
         client = Client.Client(next_hop_host, next_hop_port)
         client.start_connection()
         print("is redirecting to the next hop: %i" % (next_hop_port))

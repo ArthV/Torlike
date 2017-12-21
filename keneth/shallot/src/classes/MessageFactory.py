@@ -45,11 +45,11 @@ class MessageFactory:
             #object.type = 1
             message = KeyReplyMessage()
         elif message_type == 'MESSAGE_RELAY':
-            object.type = 2
-            message = RelayMessage(object)
+            # object.type = 2
+            message = RelayMessage()
         elif message_type == 'ERROR':
-            object.type = 3
-            message = ErrorMessage(object)
+            # object.type = 3
+            message = ErrorMessage()
 
         else:
             raise NotImplementedError('Wrong type of message')
@@ -105,8 +105,9 @@ class MessageBase(ABC):
 
         message_type = int('0b' + bin_type_version[:4], 2)
         version = int('0b' + bin_type_version[4:], 2)
-
-        length = data[2]
+        print('length data')
+        print(data[2:3])
+        length = int.from_bytes(data[2:4].encode(), 'big')
 
         return version, message_type, length
 
@@ -135,13 +136,15 @@ class KeyInitMessage(MessageBase):
         self.A = values.A  # A value
 
     def compute_length(self):
-        return str(int((260 + len(self.g)) / 4))
+        return int((260 + len(self.g)) / 4)
 
     def encode(self):
         answer = self.get_version_type_str(self.version, self.type)
         answer += PADDING_CHR
-        answer += self.compute_length()
-        answer += self.key_id
+        answer += str((self.compute_length()).to_bytes(2, byteorder='big', signed=False), encoding='utf-8')
+        print('length')
+        print(self.compute_length())
+        answer += self.add_padding(self.key_id, 4)
 
         answer += self.add_padding(self.g, 128)
         answer += self.add_padding(self.p, 128)
@@ -152,10 +155,10 @@ class KeyInitMessage(MessageBase):
     def decode(self, value):
         value = value.decode()
         self.version, self.type, length = self.get_type_version_length(value)
-        self.key_id = str(value[4:8])
+        self.key_id = self.remove_padding(str(value[4:8]))
         self.g = self.remove_padding(str(value[8:136]))
-        self.p = self.remove_padding(str(value[138:264]))
-        self.A = self.remove_padding(str(value[264:390]))
+        self.p = self.remove_padding(str(value[136:264]))
+        self.A = self.remove_padding(str(value[264:392]))
 
         return self
 
@@ -168,12 +171,12 @@ class KeyReplyMessage(MessageBase):
         self.B = values.B  # B value respond by bob
 
     def compute_length(self):
-        return str(int(132 / 4))
+        return int(132 / 4)
 
     def encode(self):
         answer = self.get_version_type_str(self.version, self.type)
         answer += PADDING_CHR
-        answer += self.add_padding(self.compute_length(), 2)
+        answer += str((self.compute_length()).to_bytes(2, byteorder='big', signed=False), encoding='utf-8')
 
         answer += self.add_padding(self.key_id, 4)
         answer += self.add_padding(self.B, 128)
@@ -195,33 +198,38 @@ class RelayMessage(MessageBase):
         self.version = values.version
         self.type = values.type
         self.key_id = values.key_id
-        self.next_hop = values.next_hop
 
         # we will fill the message to the next multiple of 8
-        len_message = len(values.message)
-        self.message = self.add_padding(
-            values.message, len_message + 8 - len_message % 8
-        )
+        # len_message = len(values.message)
+        # self.message = self.add_padding(
+        #     values.message, len_message + 8 - len_message % 8
+        # )
+        self.message = values.message
 
     def compute_length(self):
-        return str(int((4 + 4 + len(self.message)) / 4))
+        return int((4 + 4 + len(self.message)) / 4)
 
     def encode(self):
         answer = self.get_version_type_str(self.version, self.type)
         answer += PADDING_CHR
-        answer += self.add_padding(str(self.compute_length()), 2)
-        answer += self.add_padding(self.key_id, 4)
-        answer += self.add_padding(self.next_hop, 128)
-        answer += self.message
+        message_length = self.compute_length()
+        if message_length > 126:
+            first_chr = chr(126)
+            second_chr = chr(message_length % 126)
+        else:
+            first_chr = chr(message_length)
+            second_chr = PADDING_CHR
 
-        return answer.encode()
+        answer += second_chr+first_chr
+        answer += self.add_padding(self.key_id, 4)
+
+        return answer.encode() + self.message
 
     def decode(self, value):
         value = value.decode()
         self.version, self.type, length = self.get_type_version_length(value)
         self.key_id = self.remove_padding(str(value[4:8]))
-        self.next_hop = self.remove_padding(str(value[8:136]))
-        self.message = self.remove_padding(str(value[138:]))
+        self.message = value[8:]
 
         return self
 
@@ -233,12 +241,12 @@ class ErrorMessage(MessageBase):
         self.error_code = values.error_code
 
     def compute_length(self):
-        return '1'
+        return 1
 
     def encode(self):
         answer = self.get_version_type_str(self.version, self.type)
         answer += PADDING_CHR
-        answer += self.add_padding(str(self.compute_length()), 2)
+        answer += str((self.compute_length()).to_bytes(2, byteorder='big', signed=False), encoding='utf-8')
         # the size of the error code it's just one byte
         answer += str(self.error_code)
         answer += PADDING_CHR
@@ -248,7 +256,7 @@ class ErrorMessage(MessageBase):
     def decode(self, value):
         value = value.decode()
         self.version, self.type, length = self.get_type_version_length(value)
-        self.error_code = str(value[5])
+        self.error_code = str(value[4])
 
         return self
 
@@ -279,6 +287,7 @@ def test():
     print('Key_init test')
     print(test_key_init_message.type)
     print(test_key_init_message.version)
+    print(length)
     print(test_key_init_message.key_id)
     print(test_key_init_message.g)
     print(test_key_init_message.p)
@@ -303,18 +312,19 @@ def test():
     object = Object()
     object.version = 1
     object.key_id = 'test'
-    object.next_hop = '3000'
-    object.message = 'testtest'
+    object.message = ''
+    for i in range(125):
+        object.message += 'testtest'
     message = MessageFactory.get_message('MESSAGE_RELAY', object)
 
     test_message__relay = message.encode()
     test_message_relay_message = message.decode(test_message__relay)
-
+    type, version, message_length = test_message_relay_message.get_type_version_length(test_message__relay.decode())
     print('Message relay test')
     print(test_message_relay_message.type)
+    print(message_length)
     print(test_message_relay_message.version)
     print(test_message_relay_message.key_id)
-    print(test_message_relay_message.next_hop)
     print(test_message_relay_message.message)
 
     object = Object()

@@ -5,6 +5,7 @@ from _thread import start_new_thread
 from MessageFactory import MessageFactory, Object, MessageBase
 from EllipticCurve import EllipticCurve, EllipticCurvePoint, EllipticCurveNeutralEl
 from FiniteField import FiniteField
+from Crypto.Cipher import AES
 
 
 class Server:
@@ -68,7 +69,7 @@ class Server:
             )
             # Here we have to get the message and based on the type do something
             version, message_type, length = MessageBase.get_type_version_length(
-                data.decode()
+                data[0:8].decode()
             )
             print(
                 "The message version is: %s, type: %s, length: %s" %
@@ -89,7 +90,26 @@ class Server:
 
     def decrypt(self, message):
         """ Use the own key and apply the AES decypher algorithm """
-        return message
+        c = self.C
+        key = ''
+        len_x = 8 if len(c.x.coeffs) > 8 else len(c.x.coeffs)
+        len_y = 8 if len(c.y.coeffs) > 8 else len(c.y.coeffs)
+        for i in range(len_x):
+            key += str(c.x.coeffs[i])
+        for i in range(len_y):
+            key += str(c.y.coeffs[i])
+
+        encoded_key = (MessageBase.add_padding(key, 16)).encode()  # The AES algorithm only manipulates bytes
+        cipher = AES.new(encoded_key)
+
+        #message = message.decode()
+        decrypted_message = cipher.decrypt(message)
+        for i in range(len(decrypted_message)):
+            if decrypted_message[i:i+1] == b'|':
+                next_message = decrypted_message[i+1:]
+                break
+
+        return next_message
 
     def send_key(self, message):
         """ reply with the key  """
@@ -149,9 +169,9 @@ class Server:
 
     def respond(self, message):
         """ decrypt the message and respond to the client """
-        message_shell = MessageFactory.get_empty_message('MESSAGE_RELAY')
-        relay_message = message_shell.decode(message)
-        decrypted_message = self.decrypt(relay_message.message)
+        decrypted_message = self.decrypt(message[8:])
+        print('I received this message')
+        print(decrypted_message.decode())
         payload = ''
         response_message = "I've received the message"
         self.incoming_conn.send(response_message.encode())
