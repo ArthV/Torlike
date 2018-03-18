@@ -58,6 +58,7 @@ class EllipticCurvePoint:
             else:
                 # the constant will be turn in binary as a string of 0 and 1
                 cst_bin = bin(constant)[2:]
+                print(cst_bin)
                 q = EllipticCurveNeutralEl(self.elliptic_curve)
 
                 # The following code will go through the string cst_bin
